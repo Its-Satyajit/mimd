@@ -218,23 +218,16 @@ struct Api {
     fc_config_get_current: unsafe extern "C" fn() -> *mut FcConfig,
     fc_config_substitute: unsafe extern "C" fn(*mut FcConfig, *mut FcPattern, c_int),
     fc_default_substitute: unsafe extern "C" fn(*mut FcPattern),
-    fc_font_match: unsafe extern "C" fn(*mut FcConfig, *mut FcPattern, *mut c_int) -> *mut FcPattern,
+    fc_font_match:
+        unsafe extern "C" fn(*mut FcConfig, *mut FcPattern, *mut c_int) -> *mut FcPattern,
     fc_pattern_create: unsafe extern "C" fn() -> *mut FcPattern,
     fc_pattern_destroy: unsafe extern "C" fn(*mut FcPattern),
     fc_name_parse: unsafe extern "C" fn(*const FcChar8) -> *mut FcPattern,
-    fc_pattern_get_string: unsafe extern "C" fn(
-        *const FcPattern,
-        *const c_char,
-        c_int,
-        *mut *mut FcChar8,
-    ) -> c_int,
+    fc_pattern_get_string:
+        unsafe extern "C" fn(*const FcPattern, *const c_char, c_int, *mut *mut FcChar8) -> c_int,
     ft_init_freetype: unsafe extern "C" fn(*mut *mut FT_Library) -> c_int,
-    ft_new_face: unsafe extern "C" fn(
-        *mut FT_Library,
-        *const c_char,
-        c_long,
-        *mut *mut FT_Face,
-    ) -> c_int,
+    ft_new_face:
+        unsafe extern "C" fn(*mut FT_Library, *const c_char, c_long, *mut *mut FT_Face) -> c_int,
     ft_set_pixel_sizes: unsafe extern "C" fn(*mut FT_Face, c_uint, c_uint) -> c_int,
     ft_load_char: unsafe extern "C" fn(*mut FT_Face, c_ulong, c_int) -> c_int,
     ft_get_char_index: unsafe extern "C" fn(*mut FT_Face, c_ulong) -> c_uint,
@@ -246,12 +239,18 @@ struct Api {
 #[derive(Debug)]
 pub enum FontError {
     /// Neither FreeType nor fontconfig could be loaded.
-    LibraryMissing { lib: String, message: String },
+    LibraryMissing {
+        lib: String,
+        message: String,
+    },
     Symbol(String),
     /// No font on the system matched the requested role.
     NoFontForRole(&'static str),
     /// FreeType refused to open a font file.
-    FaceLoad { path: String, code: c_int },
+    FaceLoad {
+        path: String,
+        code: c_int,
+    },
 }
 
 impl std::fmt::Display for FontError {
@@ -298,7 +297,14 @@ pub struct Glyph {
 
 impl Glyph {
     fn blank(advance_x: i32) -> Self {
-        Glyph { mask: Vec::new(), width: 0, height: 0, bearing_x: 0, bearing_y: 0, advance_x }
+        Glyph {
+            mask: Vec::new(),
+            width: 0,
+            height: 0,
+            bearing_x: 0,
+            bearing_y: 0,
+            advance_x,
+        }
     }
 
     pub fn is_blank(&self) -> bool {
@@ -452,7 +458,10 @@ impl Font {
     /// Pen x for the caret sitting before character index `char_idx`.
     #[allow(dead_code)]
     pub fn caret_x(&mut self, s: &str, char_idx: usize) -> i32 {
-        s.chars().take(char_idx).map(|c| self.glyph(c).advance_x).sum()
+        s.chars()
+            .take(char_idx)
+            .map(|c| self.glyph(c).advance_x)
+            .sum()
     }
 }
 
@@ -511,7 +520,8 @@ impl Fonts {
         code_family: Option<&str>,
         size: u16,
     ) -> Result<Fonts, FontError> {
-        let fcl = unsafe { load_lib("libfontconfig.so.1").or_else(|_| load_lib("libfontconfig.so"))? };
+        let fcl =
+            unsafe { load_lib("libfontconfig.so.1").or_else(|_| load_lib("libfontconfig.so"))? };
         let ftl = unsafe { load_lib("libfreetype.so.6").or_else(|_| load_lib("libfreetype.so"))? };
 
         let api = Api {
@@ -522,9 +532,7 @@ impl Fonts {
             fc_font_match: unsafe { std::mem::transmute(fcl.sym("FcFontMatch")?) },
             fc_pattern_create: unsafe { std::mem::transmute(fcl.sym("FcPatternCreate")?) },
             fc_pattern_destroy: unsafe { std::mem::transmute(fcl.sym("FcPatternDestroy")?) },
-            fc_pattern_get_string: unsafe {
-                std::mem::transmute(fcl.sym("FcPatternGetString")?)
-            },
+            fc_pattern_get_string: unsafe { std::mem::transmute(fcl.sym("FcPatternGetString")?) },
             fc_name_parse: unsafe { std::mem::transmute(fcl.sym("FcNameParse")?) },
             ft_init_freetype: unsafe { std::mem::transmute(ftl.sym("FT_Init_FreeType")?) },
             ft_new_face: unsafe { std::mem::transmute(ftl.sym("FT_New_Face")?) },
@@ -547,7 +555,10 @@ impl Fonts {
         let mut library: *mut FT_Library = std::ptr::null_mut();
         unsafe {
             if (api.ft_init_freetype)(&mut library) != 0 {
-                return Err(FontError::FaceLoad { path: "libfreetype".into(), code: -1 });
+                return Err(FontError::FaceLoad {
+                    path: "libfreetype".into(),
+                    code: -1,
+                });
             }
         }
 
@@ -656,11 +667,12 @@ impl Fonts {
     fn open_role(&mut self, role: Role, size: u16) -> Font {
         let path = self.role_path(role);
         let api_ptr = &*self.api as *const Api;
-        open_face(&self.api, api_ptr, self.library, &path, size)
-            .unwrap_or_else(|_| match role.family() {
+        open_face(&self.api, api_ptr, self.library, &path, size).unwrap_or_else(|_| {
+            match role.family() {
                 Family::Body => self.body.clone_shallow(),
                 Family::Code => self.code.clone_shallow(),
-            })
+            }
+        })
     }
 
     /// Face for `role` at an arbitrary point size, opened on demand.
@@ -779,7 +791,8 @@ impl Fonts {
     /// installed font containing that codepoint, honouring the user's
     /// configuration and its own fallback ordering.
     fn resolve_for_char(&self, role: Role, ch: char) -> Option<String> {
-        let path = resolve_font_path(&self.api, Some(&charset_query(ch)), "sans-serif", ":").ok()?;
+        let path =
+            resolve_font_path(&self.api, Some(&charset_query(ch)), "sans-serif", ":").ok()?;
         // Only use it if it genuinely covers the codepoint.
         self.face_covers(&path, role, ch).then_some(path)
     }
@@ -833,7 +846,10 @@ fn resolve_font_path(
         if pat.is_null() {
             return Err(FontError::NoFontForRole("system default"));
         }
-        let _pat = PatternGuard { pat, destroy: Some(api.fc_pattern_destroy) };
+        let _pat = PatternGuard {
+            pat,
+            destroy: Some(api.fc_pattern_destroy),
+        };
 
         (api.fc_config_substitute)(config, pat, 0);
         (api.fc_default_substitute)(pat);
@@ -842,14 +858,20 @@ fn resolve_font_path(
         if matched.is_null() {
             return Err(FontError::NoFontForRole("system default"));
         }
-        let _m = PatternGuard { pat: matched, destroy: Some(api.fc_pattern_destroy) };
+        let _m = PatternGuard {
+            pat: matched,
+            destroy: Some(api.fc_pattern_destroy),
+        };
         let mut file: *mut FcChar8 = std::ptr::null_mut();
-        if (api.fc_pattern_get_string)(matched, FC_FILE.as_ptr() as *const c_char, 0, &mut file) != 0
+        if (api.fc_pattern_get_string)(matched, FC_FILE.as_ptr() as *const c_char, 0, &mut file)
+            != 0
             || file.is_null()
         {
             return Err(FontError::NoFontForRole("system default"));
         }
-        Ok(std::ffi::CStr::from_ptr(file as *const c_char).to_string_lossy().into_owned())
+        Ok(std::ffi::CStr::from_ptr(file as *const c_char)
+            .to_string_lossy()
+            .into_owned())
     }
 }
 
@@ -861,22 +883,32 @@ fn open_face(
     size: u16,
 ) -> Result<Font, FontError> {
     unsafe {
-        let cpath = CString::new(path)
-            .map_err(|_| FontError::FaceLoad { path: path.to_string(), code: -1 })?;
+        let cpath = CString::new(path).map_err(|_| FontError::FaceLoad {
+            path: path.to_string(),
+            code: -1,
+        })?;
         let mut face: *mut FT_Face = std::ptr::null_mut();
         let rc = (api.ft_new_face)(library, cpath.as_ptr(), 0, &mut face);
         if rc != 0 || face.is_null() {
-            return Err(FontError::FaceLoad { path: path.to_string(), code: rc });
+            return Err(FontError::FaceLoad {
+                path: path.to_string(),
+                code: rc,
+            });
         }
         if (api.ft_set_pixel_sizes)(face, 0, size as c_uint) != 0 {
             (api.ft_done_face)(face);
-            return Err(FontError::FaceLoad { path: path.to_string(), code: -2 });
+            return Err(FontError::FaceLoad {
+                path: path.to_string(),
+                code: -2,
+            });
         }
         let rec = face as *const FtFace;
         let family = if (*rec).family_name.is_null() {
             String::new()
         } else {
-            std::ffi::CStr::from_ptr((*rec).family_name).to_string_lossy().into_owned()
+            std::ffi::CStr::from_ptr((*rec).family_name)
+                .to_string_lossy()
+                .into_owned()
         };
         let scale = size as f64 / (*rec).units_per_em.max(1) as f64;
         let ascent = ((*rec).ascender as f64 * scale).ceil() as i32;
@@ -936,7 +968,11 @@ mod tests {
         for ch in ' '..='~' {
             let g = f.body.glyph(ch);
             assert!(g.advance_x >= 0, "{ch:?} had negative advance");
-            assert_eq!(g.mask.len(), (g.width * g.height) as usize, "{ch:?} mask size");
+            assert_eq!(
+                g.mask.len(),
+                (g.width * g.height) as usize,
+                "{ch:?} mask size"
+            );
         }
     }
 

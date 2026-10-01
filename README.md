@@ -90,6 +90,27 @@ Requires `libfontconfig.so.1` and `libfreetype.so.6` at runtime (present on
 any normal Linux desktop). Release profile is `opt-level = "z"`, fat LTO, one
 codegen unit, stripped.
 
+## Icon
+
+The mark is vector artwork in `mimd-logo-monochrome.svg`: a page with a folded
+corner, a bullet and bar, and three arrows. It is drawn in code rather than
+shipped as an image, because a window icon has to be pixels and an SVG
+rasterizer would cost more than the rest of the binary.
+
+- **X11** — set at runtime via `_NET_WM_ICON`, at 32px and 64px.
+- **Wayland** — there is no runtime icon protocol, so `packaging/mimd.desktop`
+  and `packaging/icons/` carry it. Install both under `~/.local/share` to get
+  the mark on the taskbar.
+
+```bash
+cp packaging/mimd.desktop ~/.local/share/applications/
+cp -r packaging/icons ~/.local/share/icons/
+```
+
+The icon is a single silhouette with the interior marks knocked out, so it
+reads on any desktop background. `MIMD_ICON_PNG=/tmp/icon.png cargo test
+the_icon_reproduces` writes the rasterized mark out for review.
+
 ## Design
 
 mimd is a reader for prose, so it is set like a page rather than a terminal.
@@ -104,9 +125,13 @@ mimd is a reader for prose, so it is set like a page rather than a terminal.
 | muted | `#5e6368` | rules, quote rails, status text |
 | accent | `#2f5d8a` | links and the caret — the only accent |
 
-- **One measure.** The window is sized to a 520px column (~68 characters)
-  plus 28px margins, not to the display. Past ~75 characters the eye loses
-  its return sweep, which is the entire point of a document reader.
+- **One measure, always centred.** The text column is 80 characters wide —
+  measured from the real font advance, not a pixel constant, so it survives a
+  change of typeface or body size — and it is centred in the window however
+  wide the window is. Widening the window adds margin, never line length.
+  Narrowing it past 80 characters makes the text wrap rather than overflow.
+  Past ~80 characters the eye loses its return sweep, which is the entire
+  point of a document reader.
 - **Weight before size.** Headings ramp 23/19/16/15px and are all bold;
   H4-H6 sit at body size and differ by weight alone.
 - **Structure stays quiet.** Horizontal rules and blockquote rails are drawn

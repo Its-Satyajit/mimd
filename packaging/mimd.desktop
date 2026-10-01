@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=mimd
+GenericName=Markdown Editor
+Comment=Read and edit Markdown, small enough to read in one sitting
+Exec=mimd %f
+Icon=mimd
+Terminal=false
+Categories=Utility;TextEditor;Development;
+MimeType=text/markdown;text/x-markdown;
+StartupWMClass=mimd
