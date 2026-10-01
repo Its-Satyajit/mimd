@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" fill="none">
+  <title>MIMD logo monochrome</title>
+  <desc>Monochrome MIMD Markdown document mark.</desc>
+  <path d="M68 40h84l36 36v140H68z" fill="currentColor"/>
+  <path d="M152 40v36h36" stroke="#fff" stroke-width="10" stroke-linejoin="round"/>
+  <rect x="88" y="104" width="18" height="18" rx="3" fill="#fff"/>
+  <rect x="114" y="104" width="72" height="18" rx="3" fill="#fff"/>
+  <path d="M88 150v34M88 150l18 18 18-18M124 150v34M124 150l18 18 18-18M160 150v34"
+        stroke="#fff" stroke-width="10" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
